@@ -1,0 +1,255 @@
+@model CivicVoice.Web.ViewModels.GrievanceDetailsViewModel
+
+@{
+    ViewData["Title"] = $"Grievance #{Model.Grievance.GrievanceId}";
+    var isBreached = Model.Grievance.Status != GrievanceStatus.Resolved 
+                  && Model.Grievance.Status != GrievanceStatus.Rejected 
+                  && Model.Grievance.DueAt < DateTime.UtcNow;
+
+    var statusClass = Model.Grievance.Status switch
+    {
+        GrievanceStatus.Submitted => "badge-status-submitted",
+        GrievanceStatus.Assigned => "badge-status-assigned",
+        GrievanceStatus.InProgress => "badge-status-inprogress",
+        GrievanceStatus.Resolved => "badge-status-resolved",
+        GrievanceStatus.Rejected => "badge-status-rejected",
+        _ => "bg-light text-dark"
+    };
+}
+
+<div class="row">
+    <!-- Main Left Column: Grievance Information & Status Updates -->
+    <div class="col-lg-8">
+        <div class="d-flex align-items-center mb-3">
+            <a asp-action="Index" class="btn btn-outline-secondary btn-sm rounded-circle me-3">
+                <i class="bi bi-arrow-left"></i>
+            </a>
+            <div>
+                <span class="badge bg-secondary mb-1">Grievance Ticket</span>
+                <h2 class="fw-bold mb-0">Complaint #@Model.Grievance.GrievanceId</h2>
+            </div>
+            <div class="ms-auto">
+                <span class="badge-status @statusClass fs-6">
+                    @Model.Grievance.Status
+                </span>
+            </div>
+        </div>
+
+        <!-- Main Ticket Card -->
+        <div class="civic-card mb-4">
+            <h5 class="fw-bold text-secondary mb-3"><i class="bi bi-chat-left-quote-fill me-2 text-primary"></i>Complaint Description</h5>
+            <div class="p-3 bg-light rounded-3 mb-4 fs-5" style="white-space: pre-wrap;">@Model.Grievance.Description</div>
+
+            @if (!string.IsNullOrEmpty(Model.Grievance.PhotoPath))
+            {
+                <div class="mb-4">
+                    <h6 class="fw-bold text-secondary mb-2"><i class="bi bi-image me-2 text-success"></i>Attached Photo Evidence</h6>
+                    <img src="@Model.Grievance.PhotoPath" alt="Grievance Evidence" class="img-fluid rounded-3 border shadow-sm" style="max-height: 400px; object-fit: contain;" />
+                </div>
+            }
+
+            <div class="row g-3">
+                <div class="col-sm-6">
+                    <div class="p-3 border rounded-3 bg-white">
+                        <small class="text-muted d-block fw-semibold text-uppercase">Municipal Ward</small>
+                        <span class="fw-bold text-dark fs-6">
+                            <i class="bi bi-geo-alt-fill text-danger me-1"></i>@(Model.Grievance.Ward?.Name ?? $"Ward #{Model.Grievance.WardId}")
+                        </span>
+                        <div class="small text-muted">Area: @(Model.Grievance.Ward?.Area ?? "N/A") (Pin: @(Model.Grievance.Ward?.Pincode ?? "N/A"))</div>
+                    </div>
+                </div>
+                <div class="col-sm-6">
+                    <div class="p-3 border rounded-3 bg-white">
+                        <small class="text-muted d-block fw-semibold text-uppercase">Responsible Department</small>
+                        <span class="fw-bold text-primary fs-6">
+                            <i class="bi bi-building me-1"></i>@(Model.Grievance.Category?.Department?.Name ?? "Department Assigned")
+                        </span>
+                        <div class="small text-muted">Category: @(Model.Grievance.Category?.Name ?? "General")</div>
+                    </div>
+                </div>
+                <div class="col-sm-6">
+                    <div class="p-3 border rounded-3 bg-white">
+                        <small class="text-muted d-block fw-semibold text-uppercase">Registered By</small>
+                        <span class="fw-bold text-dark fs-6">
+                            @if (Model.Grievance.IsAnonymous)
+                            {
+                                <i class="bi bi-incognito text-secondary me-1"></i><span>Anonymous Citizen</span>
+                            }
+                            else
+                            {
+                                <i class="bi bi-person-fill text-primary me-1"></i><span>@(ViewBag.DisplayCitizenName ?? Model.Grievance.CitizenId)</span>
+                            }
+                        </span>
+                        <div class="small text-muted">Submitted: @Model.Grievance.CreatedAt.ToLocalTime().ToString("f")</div>
+                    </div>
+                </div>
+                <div class="col-sm-6">
+                    <div class="p-3 border rounded-3 bg-white">
+                        <small class="text-muted d-block fw-semibold text-uppercase">Service Level Agreement (SLA)</small>
+                        @if (isBreached)
+                        {
+                            <span class="badge badge-sla-breached fs-6">
+                                <i class="bi bi-exclamation-triangle-fill me-1"></i>SLA BREACHED
+                            </span>
+                            <div class="small text-danger mt-1">Deadline was @Model.Grievance.DueAt.ToLocalTime().ToString("g")</div>
+                        }
+                        else
+                        {
+                            <span class="fw-bold text-success fs-6">
+                                <i class="bi bi-check2-circle me-1"></i>Within SLA
+                            </span>
+                            <div class="small text-muted">Due by @Model.Grievance.DueAt.ToLocalTime().ToString("g")</div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Authorized Status Transition Form (For Department Officers & Commissioner) -->
+        @if (Model.CanChangeStatus && Model.AllowedNextStatuses.Any())
+        {
+            <div class="civic-card border-warning border-opacity-50">
+                <div class="d-flex align-items-center mb-3">
+                    <div class="p-2 bg-warning bg-opacity-10 text-warning rounded-3 me-2">
+                        <i class="bi bi-gear-fill fs-4"></i>
+                    </div>
+                    <div>
+                        <h5 class="fw-bold mb-0">Official Status Management</h5>
+                        <small class="text-muted">State machine transition &mdash; updates will trigger automated audit history</small>
+                    </div>
+                </div>
+
+                <form asp-action="UpdateStatus" method="post" class="row g-2 align-items-end">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="grievanceId" value="@Model.Grievance.GrievanceId" />
+
+                    <div class="col-md-7">
+                        <label class="form-label small fw-semibold">Allowed Next Status:</label>
+                        <select name="newStatus" class="form-select">
+                            @foreach (var s in Model.AllowedNextStatuses)
+                            {
+                                <option value="@s">Move to: @s</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="col-md-5">
+                        <button type="submit" class="btn btn-warning w-100 fw-bold shadow-sm">
+                            <i class="bi bi-arrow-repeat me-1"></i> Apply Status Change
+                        </button>
+                    </div>
+                </form>
+            </div>
+        }
+
+        <!-- Citizen Feedback Section -->
+        @if (Model.CanSubmitFeedback)
+        {
+            <div class="civic-card border-success border-opacity-50">
+                <div class="d-flex align-items-center mb-3">
+                    <div class="p-2 bg-success bg-opacity-10 text-success rounded-3 me-2">
+                        <i class="bi bi-star-fill fs-4"></i>
+                    </div>
+                    <div>
+                        <h5 class="fw-bold mb-0 text-success">Citizen Resolution Feedback</h5>
+                        <small class="text-muted">Rate the quality of the grievance resolution provided by municipal staff</small>
+                    </div>
+                </div>
+
+                <form asp-controller="Feedback" asp-action="Submit" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="grievanceId" value="@Model.Grievance.GrievanceId" />
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Satisfaction Rating (1 to 5 Stars):</label>
+                        <select name="rating" class="form-select w-auto">
+                            <option value="5">&#9733;&#9733;&#9733;&#9733;&#9733; (5 - Excellent)</option>
+                            <option value="4">&#9733;&#9733;&#9733;&#9733;&#9734; (4 - Good)</option>
+                            <option value="3">&#9733;&#9733;&#9733;&#9734;&#9734; (3 - Satisfactory)</option>
+                            <option value="2">&#9733;&#9733;&#9734;&#9734;&#9734; (2 - Poor)</option>
+                            <option value="1">&#9733;&#9734;&#9734;&#9734;&#9734; (1 - Very Unsatisfied)</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Optional Citizen Comments:</label>
+                        <textarea name="comments" class="form-control" rows="3" placeholder="Share your experience with the resolution..."></textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-success rounded-pill px-4 fw-semibold shadow-sm">
+                        <i class="bi bi-send-check-fill me-1"></i> Submit Feedback
+                    </button>
+                </form>
+            </div>
+        }
+
+        <!-- Display Existing Feedback -->
+        @if (Model.ExistingFeedbacks.Any())
+        {
+            <div class="civic-card">
+                <h5 class="fw-bold mb-3"><i class="bi bi-chat-heart-fill me-2 text-danger"></i>Citizen Feedback Received</h5>
+                @foreach (var fb in Model.ExistingFeedbacks)
+                {
+                    <div class="p-3 bg-light rounded-3 mb-2 border">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <div>
+                                @for (int i = 1; i <= 5; i++)
+                                {
+                                    <i class="bi bi-star-fill @(i <= fb.Rating ? "text-warning" : "text-muted opacity-25")"></i>
+                                }
+                                <span class="fw-bold ms-2">@fb.Rating / 5 Stars</span>
+                            </div>
+                            <small class="text-muted">@fb.CreatedAt.ToLocalTime().ToString("f")</small>
+                        </div>
+                        @if (!string.IsNullOrEmpty(fb.Comments))
+                        {
+                            <p class="mb-0 text-secondary mt-2">"@fb.Comments"</p>
+                        }
+                    </div>
+                }
+            </div>
+        }
+    </div>
+
+    <!-- Right Column: Status History Audit Timeline (Trigger Verified) -->
+    <div class="col-lg-4">
+        <div class="civic-card">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold mb-0"><i class="bi bi-journal-text me-2 text-primary"></i>Status History</h5>
+                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 small">SQL Trigger</span>
+            </div>
+            <p class="small text-muted mb-0">Immutable audit timeline maintained by database trigger <code>trg_GrievanceStatusHistory</code></p>
+
+            <div class="timeline">
+                @foreach (var history in Model.HistoryTimeline)
+                {
+                    var isResolved = history.NewStatus == GrievanceStatus.Resolved;
+                    <div class="timeline-item @(isResolved ? "resolved" : "")">
+                        <div class="timeline-dot"></div>
+                        <div class="timeline-content shadow-sm">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="badge @(isResolved ? "bg-success" : "bg-primary") rounded-pill">
+                                    @history.NewStatus
+                                </span>
+                                <small class="text-muted">@history.ChangedAt.ToLocalTime().ToString("MMM dd, HH:mm")</small>
+                            </div>
+                            <div class="small text-muted">
+                                @if (history.OldStatus.HasValue)
+                                {
+                                    <span>Changed from <span class="fw-semibold">@history.OldStatus</span></span>
+                                }
+                                else
+                                {
+                                    <span>Initial complaint submission</span>
+                                }
+                            </div>
+                            <div class="small text-secondary mt-1">
+                                <i class="bi bi-person me-1"></i>By: @(history.ChangedBy ?? "System")
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>

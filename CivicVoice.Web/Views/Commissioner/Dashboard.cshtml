@@ -1,0 +1,182 @@
+@model CivicVoice.Web.ViewModels.CommissionerDashboardViewModel
+
+@{
+    ViewData["Title"] = "Commissioner Executive Analytics";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <div>
+        <span class="badge bg-primary px-3 py-1 rounded-pill fw-bold mb-2">
+            <i class="bi bi-shield-check me-1"></i> Executive Municipal Governance
+        </span>
+        <h2 class="fw-bold mb-0">Commissioner Governance &amp; SLA Analytics</h2>
+        <p class="text-muted mb-0">City-wide performance tracking backed by SQL View <code>vw_DepartmentSlaReport</code></p>
+    </div>
+
+    <div class="d-flex gap-2">
+        <a asp-controller="Grievances" asp-action="ExportCsv" class="btn btn-outline-secondary rounded-pill px-3 shadow-sm">
+            <i class="bi bi-file-earmark-spreadsheet me-1 text-success"></i> Export Municipal CSV
+        </a>
+    </div>
+</div>
+
+<!-- City-wide KPI Overview -->
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card card-primary h-100">
+            <div class="stat-label">Total City Grievances</div>
+            <div class="stat-value text-primary">@Model.GlobalStats.TotalGrievances</div>
+            <div class="small text-muted mt-2">Aggregated across all wards</div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card card-warning h-100">
+            <div class="stat-label">Active / Pending</div>
+            <div class="stat-value text-warning">@Model.GlobalStats.OpenGrievances</div>
+            <div class="small text-muted mt-2">In municipal processing queues</div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card card-success h-100">
+            <div class="stat-label">Resolved Grievances</div>
+            <div class="stat-value text-success">@Model.GlobalStats.ResolvedGrievances</div>
+            <div class="small text-muted mt-2">Verified field solutions</div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card card-danger h-100">
+            <div class="stat-label">Total SLA Breaches</div>
+            <div class="stat-value text-danger">@Model.GlobalStats.SlaBreach</div>
+            <div class="small text-muted mt-2">Statutory deadlines exceeded</div>
+        </div>
+    </div>
+</div>
+
+<!-- Department Performance Table (From SQL View vw_DepartmentSlaReport) -->
+<div class="civic-card p-0 overflow-hidden mb-4">
+    <div class="p-3 bg-light border-bottom d-flex justify-content-between align-items-center">
+        <h5 class="fw-bold mb-0 text-secondary">
+            <i class="bi bi-building me-2 text-primary"></i>Department SLA Performance (SQL View: <code>vw_DepartmentSlaReport</code>)
+        </h5>
+        <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25">Live SQL View</span>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table civic-table mb-0">
+            <thead>
+                <tr>
+                    <th>Department Name</th>
+                    <th>Total Cases</th>
+                    <th>Active / In Progress</th>
+                    <th>Resolved</th>
+                    <th>SLA Breaches</th>
+                    <th>Resolution Rate</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var dept in Model.DepartmentReports.Items)
+                {
+                    var rate = dept.TotalGrievances > 0 
+                        ? Math.Round((double)dept.ResolvedGrievances * 100.0 / dept.TotalGrievances, 1) 
+                        : 0.0;
+
+                    <tr>
+                        <td class="fw-bold">
+                            <i class="bi bi-diagram-3 me-2 text-secondary"></i>@dept.DepartmentName
+                        </td>
+                        <td class="fw-semibold">@dept.TotalGrievances</td>
+                        <td>
+                            <span class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 px-2 py-1">
+                                @dept.OpenGrievances
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2 py-1">
+                                @dept.ResolvedGrievances
+                            </span>
+                        </td>
+                        <td>
+                            @if (dept.SlaBreach > 0)
+                            {
+                                <span class="badge bg-danger px-2 py-1">@dept.SlaBreach Breaches</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-light text-secondary border">0</span>
+                            }
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="progress flex-grow-1" style="height: 8px;">
+                                    <div class="progress-bar @(rate >= 80 ? "bg-success" : rate >= 50 ? "bg-primary" : "bg-warning")" 
+                                         role="progressbar" style="width: @rate%" aria-valuenow="@rate" aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>
+                                <span class="small fw-bold">@rate%</span>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Escalation Attention: Overdue Grievances Needing Commissioner Intervention -->
+<div class="civic-card p-0 overflow-hidden">
+    <div class="p-3 bg-danger bg-opacity-10 border-bottom border-danger border-opacity-25 d-flex justify-content-between align-items-center">
+        <h5 class="fw-bold mb-0 text-danger">
+            <i class="bi bi-bell-fill me-2"></i>SLA Escalations &mdash; Overdue Complaints
+        </h5>
+        <span class="badge bg-danger">Requires Prompt Intervention</span>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table civic-table mb-0">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Department</th>
+                    <th>Complaint Details</th>
+                    <th>Ward</th>
+                    <th>Due Deadline</th>
+                    <th class="text-end">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (!Model.OverdueGrievances.Any())
+                {
+                    <tr>
+                        <td colspan="6" class="text-center py-4 text-muted">
+                            <i class="bi bi-shield-check fs-2 text-success d-block mb-1"></i>
+                            <span class="fw-semibold">No grievances have breached their SLA deadlines. Perfect compliance!</span>
+                        </td>
+                    </tr>
+                }
+                else
+                {
+                    @foreach (var g in Model.OverdueGrievances)
+                    {
+                        <tr>
+                            <td class="fw-bold text-danger">#@g.GrievanceId</td>
+                            <td class="fw-semibold text-primary">@(g.Category?.Department?.Name ?? "Department Assigned")</td>
+                            <td>
+                                <div class="text-truncate" style="max-width: 300px;" title="@g.Description">
+                                    @g.Description
+                                </div>
+                            </td>
+                            <td>@(g.Ward?.Name ?? $"Ward #{g.WardId}")</td>
+                            <td class="text-danger fw-semibold">
+                                <i class="bi bi-alarm me-1"></i>@g.DueAt.ToLocalTime().ToString("MMM dd, HH:mm")
+                            </td>
+                            <td class="text-end">
+                                <a asp-controller="Grievances" asp-action="Details" asp-route-id="@g.GrievanceId" class="btn btn-outline-danger btn-sm rounded-pill">
+                                    Inspect Case
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

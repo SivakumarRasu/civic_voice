@@ -1,0 +1,75 @@
+@model CivicVoice.Web.ViewModels.LoginViewModel
+
+@{
+    ViewData["Title"] = "Account Login";
+}
+
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-5">
+        <div class="text-center mb-4">
+            <div class="p-3 bg-primary bg-opacity-10 text-primary rounded-circle d-inline-flex mb-2">
+                <i class="bi bi-shield-lock-fill fs-2"></i>
+            </div>
+            <h3 class="fw-bold">Sign In to CivicVoice</h3>
+            <p class="text-muted small">Access your citizen complaints, officer queue, or commissioner dashboard</p>
+        </div>
+
+        <!-- 1-Click Evaluation Demo Logins Card -->
+        <div class="card mb-4 border-primary border-opacity-25 bg-primary bg-opacity-10 rounded-4 p-3 shadow-sm">
+            <h6 class="fw-bold text-primary mb-2"><i class="bi bi-stars me-1"></i> 1-Click Academic Evaluation Demo Logins</h6>
+            <div class="d-grid gap-2">
+                <a asp-action="QuickLogin" asp-route-role="citizen" class="btn btn-outline-primary btn-sm rounded-pill text-start px-3 bg-white">
+                    <i class="bi bi-person-fill text-primary me-2"></i> <strong>Citizen</strong> (citizen@civicvoice.local)
+                </a>
+                <a asp-action="QuickLogin" asp-route-role="officer" class="btn btn-outline-warning btn-sm rounded-pill text-start px-3 bg-white text-dark">
+                    <i class="bi bi-cone-striped text-warning me-2"></i> <strong>Roads Department Officer</strong> (roads_officer@civicvoice.local)
+                </a>
+                <a asp-action="QuickLogin" asp-route-role="water" class="btn btn-outline-info btn-sm rounded-pill text-start px-3 bg-white text-dark">
+                    <i class="bi bi-droplet-half text-info me-2"></i> <strong>Water Department Officer</strong> (water_officer@civicvoice.local)
+                </a>
+                <a asp-action="QuickLogin" asp-route-role="commissioner" class="btn btn-outline-success btn-sm rounded-pill text-start px-3 bg-white text-dark">
+                    <i class="bi bi-shield-check text-success me-2"></i> <strong>Municipal Commissioner</strong> (commissioner@civicvoice.local)
+                </a>
+            </div>
+        </div>
+
+        <!-- Standard Login Form -->
+        <div class="civic-card">
+            <form asp-action="Login" method="post" novalidate>
+                @Html.AntiForgeryToken()
+                <input type="hidden" asp-for="ReturnUrl" />
+
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger small rounded-3" role="alert"></div>
+
+                <div class="mb-3">
+                    <label asp-for="EmailOrUsername" class="form-label fw-semibold">Email or Username</label>
+                    <input asp-for="EmailOrUsername" class="form-control" placeholder="name@civicvoice.local" />
+                    <span asp-validation-for="EmailOrUsername" class="text-danger small"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Password" class="form-label fw-semibold">Password</label>
+                    <input asp-for="Password" class="form-control" type="password" placeholder="Password123!" />
+                    <span asp-validation-for="Password" class="text-danger small"></span>
+                </div>
+
+                <div class="mb-3 form-check">
+                    <input asp-for="RememberMe" class="form-check-input" />
+                    <label asp-for="RememberMe" class="form-check-label small">Remember me on this browser</label>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 fw-semibold shadow-sm">
+                    Sign In
+                </button>
+            </form>
+
+            <div class="text-center mt-3 pt-3 border-top small text-muted">
+                Don't have an account yet? <a asp-action="Register" class="text-primary fw-semibold text-decoration-none">Register here</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

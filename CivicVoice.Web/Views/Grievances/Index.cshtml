@@ -1,0 +1,156 @@
+@model CivicVoice.Web.ViewModels.GrievanceListViewModel
+
+@{
+    ViewData["Title"] = "Public Grievance Registry";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <div>
+        <h2 class="fw-bold mb-1"><i class="bi bi-card-list me-2 text-primary"></i>Public Grievance Registry</h2>
+        <p class="text-muted mb-0">Search, monitor, and track municipal complaints across wards</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a id="btnExportCsv" asp-action="ExportCsv" 
+           asp-route-searchTerm="@Model.SearchTerm" 
+           asp-route-status="@Model.Status" 
+           asp-route-wardId="@Model.WardId" 
+           asp-route-departmentId="@Model.DepartmentId" 
+           class="btn btn-outline-secondary rounded-pill px-3 shadow-sm">
+            <i class="bi bi-file-earmark-spreadsheet me-1 text-success"></i> Export CSV
+        </a>
+        <a asp-action="Create" class="btn btn-primary rounded-pill px-4 fw-semibold shadow-sm">
+            <i class="bi bi-plus-circle me-1"></i> New Complaint
+        </a>
+    </div>
+</div>
+
+<!-- Live Filter Card -->
+<div class="civic-card p-3 mb-4">
+    <form id="filterForm" method="get" asp-action="Index" class="row g-2 align-items-center">
+        <!-- Live Search Input -->
+        <div class="col-md-4">
+            <div class="input-group">
+                <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
+                <input type="text" id="searchTermInput" name="searchTerm" class="form-control border-start-0 ps-0" 
+                       placeholder="Search description, ward, category..." value="@Model.SearchTerm" autocomplete="off" />
+            </div>
+        </div>
+
+        <!-- Status Filter -->
+        <div class="col-md-2">
+            <select id="statusSelect" name="status" class="form-select" asp-for="Status" asp-items="Html.GetEnumSelectList<CivicVoice.Domain.Enums.GrievanceStatus>()">
+                <option value="">-- All Statuses --</option>
+            </select>
+        </div>
+
+        <!-- Ward Filter (Phase 8 Session memory) -->
+        <div class="col-md-2">
+            <select id="wardSelect" name="wardId" class="form-select" asp-for="WardId" asp-items="Model.Wards">
+                <option value="">-- All Wards --</option>
+            </select>
+        </div>
+
+        <!-- Department Filter -->
+        <div class="col-md-2">
+            <select id="departmentSelect" name="departmentId" class="form-select" asp-for="DepartmentId" asp-items="Model.Departments">
+                <option value="">-- All Departments --</option>
+            </select>
+        </div>
+
+        <!-- Overdue SLA Breached Toggle -->
+        <div class="col-md-2">
+            <div class="form-check form-switch pt-2">
+                <input class="form-check-input" type="checkbox" id="overdueOnlyCheck" name="overdueOnly" value="true" @(Model.OverdueOnly ? "checked" : "")>
+                <label class="form-check-label small fw-semibold text-danger" for="overdueOnlyCheck">
+                    <i class="bi bi-exclamation-triangle"></i> Overdue Only
+                </label>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Table Card with Live AJAX Target -->
+<div class="civic-card p-0 overflow-hidden">
+    <div class="p-3 bg-light border-bottom d-flex justify-content-between align-items-center">
+        <span class="small fw-semibold text-muted">
+            <i class="bi bi-funnel me-1"></i> Live Results <span id="loadingSpinner" class="spinner-border spinner-border-sm text-primary ms-2 d-none" role="status"></span>
+        </span>
+        <span class="badge bg-secondary rounded-pill">Phase 9 AJAX Live Filter Enabled</span>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table civic-table mb-0">
+            <thead>
+                <tr>
+                    <th style="width: 100px;">Grievance ID</th>
+                    <th>Description</th>
+                    <th>Municipal Ward</th>
+                    <th>Category &amp; Department</th>
+                    <th>Status</th>
+                    <th>SLA Deadline</th>
+                    <th class="text-end">Action</th>
+                </tr>
+            </thead>
+            <tbody id="grievanceTableBody">
+                @await Html.PartialAsync("_GrievanceRows", Model.Grievances)
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    // ── Phase 9: Debounced AJAX Search and Filtering ─────────────────────────
+    let debounceTimer;
+
+    function fetchGrievancesAjax() {
+        const searchTerm = document.getElementById('searchTermInput').value;
+        const status = document.getElementById('statusSelect').value;
+        const wardId = document.getElementById('wardSelect').value;
+        const departmentId = document.getElementById('departmentSelect').value;
+        const overdueOnly = document.getElementById('overdueOnlyCheck').checked;
+
+        const spinner = document.getElementById('loadingSpinner');
+        spinner.classList.remove('d-none');
+
+        const params = new URLSearchParams({
+            searchTerm: searchTerm,
+            status: status,
+            wardId: wardId,
+            departmentId: departmentId,
+            overdueOnly: overdueOnly
+        });
+
+        // Update CSV Export link dynamically to match filters
+        const btnExport = document.getElementById('btnExportCsv');
+        btnExport.href = `@Url.Action("ExportCsv", "Grievances")?` + params.toString();
+
+        fetch(`@Url.Action("SearchAjax", "Grievances")?` + params.toString())
+            .then(response => {
+                if (!response.ok) throw new Error('Network response error');
+                return response.text();
+            })
+            .then(html => {
+                document.getElementById('grievanceTableBody').innerHTML = html;
+            })
+            .catch(err => {
+                console.error('AJAX search failed:', err);
+            })
+            .finally(() => {
+                spinner.classList.add('d-none');
+            });
+    }
+
+    // Debounce search text input
+    document.getElementById('searchTermInput').addEventListener('input', function () {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(fetchGrievancesAjax, 300);
+    });
+
+    // Immediate AJAX fetch on select or checkbox changes
+    document.getElementById('statusSelect').addEventListener('change', fetchGrievancesAjax);
+    document.getElementById('wardSelect').addEventListener('change', fetchGrievancesAjax);
+    document.getElementById('departmentSelect').addEventListener('change', fetchGrievancesAjax);
+    document.getElementById('overdueOnlyCheck').addEventListener('change', fetchGrievancesAjax);
+</script>
+}

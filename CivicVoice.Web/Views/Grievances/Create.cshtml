@@ -1,0 +1,107 @@
+@model CivicVoice.Web.ViewModels.CreateGrievanceViewModel
+
+@{
+    ViewData["Title"] = "Register Municipal Grievance";
+}
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="d-flex align-items-center mb-3">
+            <a asp-action="Index" class="btn btn-outline-secondary btn-sm rounded-circle me-3">
+                <i class="bi bi-arrow-left"></i>
+            </a>
+            <div>
+                <h2 class="fw-bold mb-0">Register Municipal Grievance</h2>
+                <small class="text-muted">Citizens can report municipal problems for prompt administrative resolution</small>
+            </div>
+        </div>
+
+        <div class="civic-card">
+            <form asp-action="Create" method="post" enctype="multipart/form-data" novalidate>
+                @Html.AntiForgeryToken()
+
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger mb-4 rounded-3 small" role="alert"></div>
+
+                <!-- Municipal Ward Selection with Remote Validation -->
+                <div class="mb-3">
+                    <label asp-for="WardId" class="form-label fw-semibold">
+                        <i class="bi bi-geo-alt text-danger me-1"></i>Municipal Ward <span class="text-danger">*</span>
+                    </label>
+                    <select asp-for="WardId" class="form-select form-select-lg" asp-items="Model.Wards">
+                        <option value="">-- Select Municipal Ward / Location --</option>
+                    </select>
+                    <span asp-validation-for="WardId" class="text-danger small"></span>
+                    <div class="form-text small">Select the ward where the civic issue is located. Validated live against city records.</div>
+                </div>
+
+                <!-- Category Selection with SLA and Department Info -->
+                <div class="mb-3">
+                    <label asp-for="CategoryId" class="form-label fw-semibold">
+                        <i class="bi bi-tag text-primary me-1"></i>Grievance Category <span class="text-danger">*</span>
+                    </label>
+                    <select asp-for="CategoryId" class="form-select form-select-lg" asp-items="Model.Categories">
+                        <option value="">-- Select Category (Determines Department &amp; SLA) --</option>
+                    </select>
+                    <span asp-validation-for="CategoryId" class="text-danger small"></span>
+                    <div class="form-text small">Each category automatically routes to its responsible department with a binding SLA deadline.</div>
+                </div>
+
+                <!-- Complaint Description -->
+                <div class="mb-3">
+                    <label asp-for="Description" class="form-label fw-semibold">
+                        <i class="bi bi-card-text text-secondary me-1"></i>Detailed Complaint Description <span class="text-danger">*</span>
+                    </label>
+                    <textarea asp-for="Description" class="form-control" rows="4" 
+                              placeholder="Please describe the problem clearly, including specific landmarks or street names (minimum 10 characters)..."></textarea>
+                    <span asp-validation-for="Description" class="text-danger small"></span>
+                    <div class="form-text small">Between 10 and 2000 characters.</div>
+                </div>
+
+                <!-- Optional Incident Occurrence Date with [NotFutureDate] validation -->
+                <div class="mb-3">
+                    <label asp-for="IncidentDate" class="form-label fw-semibold">
+                        <i class="bi bi-calendar-event text-info me-1"></i>Incident Occurrence Date &amp; Time
+                    </label>
+                    <input asp-for="IncidentDate" class="form-control" type="datetime-local" />
+                    <span asp-validation-for="IncidentDate" class="text-danger small"></span>
+                    <div class="form-text small">Cannot be in the future (validated by custom <code>[NotFutureDate]</code> attribute).</div>
+                </div>
+
+                <!-- Photo Evidence Upload (Validated max 5MB, JPG/PNG/WebP) -->
+                <div class="mb-4">
+                    <label asp-for="Photo" class="form-label fw-semibold">
+                        <i class="bi bi-camera text-success me-1"></i>Photo Evidence (Optional)
+                    </label>
+                    <input asp-for="Photo" class="form-control" type="file" accept="image/jpeg,image/png,image/webp" />
+                    <span asp-validation-for="Photo" class="text-danger small"></span>
+                    <div class="form-text small">Supported formats: JPEG, PNG, WebP. Maximum size: 5 MB.</div>
+                </div>
+
+                <!-- Anonymous Complaint Checkbox -->
+                <div class="mb-4 p-3 bg-light rounded-3 border">
+                    <div class="form-check form-switch mb-0">
+                        <input asp-for="IsAnonymous" class="form-check-input" type="checkbox" id="checkAnonymous">
+                        <label class="form-check-label fw-semibold" for="checkAnonymous">
+                            <i class="bi bi-incognito me-1 text-secondary"></i> Submit as Anonymous Citizen
+                        </label>
+                    </div>
+                    <div class="small text-muted mt-1 ps-4">
+                        Your identity will be masked on public displays and department officer views. Only the municipal commissioner can view audit records if required.
+                    </div>
+                </div>
+
+                <!-- Form Action Buttons -->
+                <div class="d-flex justify-content-end gap-2">
+                    <a asp-action="Index" class="btn btn-outline-secondary px-4 rounded-pill">Cancel</a>
+                    <button type="submit" class="btn btn-primary px-5 rounded-pill fw-semibold shadow-sm">
+                        <i class="bi bi-send-fill me-1"></i> Submit Grievance
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

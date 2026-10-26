@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="CivicVoice.Application/CivicVoice.Application.csproj" />
+  <Project Path="CivicVoice.Domain/CivicVoice.Domain.csproj" />
+  <Project Path="CivicVoice.Infrastructure/CivicVoice.Infrastructure.csproj" />
+  <Project Path="CivicVoice.Tests/CivicVoice.Tests.csproj" />
+  <Project Path="CivicVoice.Web/CivicVoice.Web.csproj" />
+</Solution>

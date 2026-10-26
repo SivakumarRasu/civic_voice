@@ -1,0 +1,171 @@
+@model CivicVoice.Web.ViewModels.OfficerDashboardViewModel
+
+@{
+    ViewData["Title"] = "Department Officer Portal";
+    var departments = ViewBag.Departments as IEnumerable<CivicVoice.Domain.Entities.Department> ?? new List<CivicVoice.Domain.Entities.Department>();
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <div>
+        <span class="badge bg-warning text-dark px-3 py-1 rounded-pill fw-bold mb-2">
+            <i class="bi bi-briefcase-fill me-1"></i> Department Officer Workspace
+        </span>
+        <h2 class="fw-bold mb-0">@Model.DepartmentName &mdash; Worklist</h2>
+        <p class="text-muted mb-0">Manage assigned field complaints and maintain municipal SLA compliance</p>
+    </div>
+
+    <!-- Department Switcher Dropdown -->
+    <div class="dropdown">
+        <button class="btn btn-outline-secondary dropdown-toggle rounded-pill px-3 shadow-sm" type="button" data-bs-toggle="dropdown">
+            <i class="bi bi-building me-1"></i> Switch Department
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end shadow">
+            @foreach (var d in departments)
+            {
+                <li>
+                    <a class="dropdown-item @(d.DepartmentId == Model.DepartmentId ? "active" : "")" 
+                       asp-action="Dashboard" asp-route-departmentId="@d.DepartmentId">
+                        @d.Name
+                    </a>
+                </li>
+            }
+        </ul>
+    </div>
+</div>
+
+<!-- Department Stats Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card card-primary h-100">
+            <div class="stat-label">Pending Assigned</div>
+            <div class="stat-value text-primary">@Model.AssignedCount</div>
+            <div class="small text-muted mt-2">Awaiting officer acknowledgment</div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card card-warning h-100">
+            <div class="stat-label">In Progress</div>
+            <div class="stat-value text-warning">@Model.InProgressCount</div>
+            <div class="small text-muted mt-2">Field work actively underway</div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card card-success h-100">
+            <div class="stat-label">Resolved</div>
+            <div class="stat-value text-success">@Model.ResolvedCount</div>
+            <div class="small text-muted mt-2">Successfully closed</div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card card-danger h-100">
+            <div class="stat-label">Breached SLA</div>
+            <div class="stat-value text-danger">@Model.BreachedCount</div>
+            <div class="small text-muted mt-2">Immediate escalation required</div>
+        </div>
+    </div>
+</div>
+
+<!-- Officer Worklist Table -->
+<div class="civic-card p-0 overflow-hidden">
+    <div class="p-3 bg-light border-bottom d-flex justify-content-between align-items-center">
+        <h5 class="fw-bold mb-0 text-secondary">
+            <i class="bi bi-list-task me-2 text-primary"></i>Assigned Grievances (@Model.Grievances.Count())
+        </h5>
+        <div class="d-flex gap-2">
+            <a asp-action="Dashboard" asp-route-departmentId="@Model.DepartmentId" class="btn btn-sm btn-outline-secondary rounded-pill @(Model.SelectedStatus == null ? "active" : "")">All</a>
+            <a asp-action="Dashboard" asp-route-departmentId="@Model.DepartmentId" asp-route-status="1" class="btn btn-sm btn-outline-secondary rounded-pill @(Model.SelectedStatus == CivicVoice.Domain.Enums.GrievanceStatus.Assigned ? "active" : "")">Assigned</a>
+            <a asp-action="Dashboard" asp-route-departmentId="@Model.DepartmentId" asp-route-status="2" class="btn btn-sm btn-outline-secondary rounded-pill @(Model.SelectedStatus == CivicVoice.Domain.Enums.GrievanceStatus.InProgress ? "active" : "")">In Progress</a>
+            <a asp-action="Dashboard" asp-route-departmentId="@Model.DepartmentId" asp-route-status="3" class="btn btn-sm btn-outline-secondary rounded-pill @(Model.SelectedStatus == CivicVoice.Domain.Enums.GrievanceStatus.Resolved ? "active" : "")">Resolved</a>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table civic-table mb-0">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Category &amp; Ward</th>
+                    <th>Complaint Description</th>
+                    <th>Current Status</th>
+                    <th>SLA Deadline</th>
+                    <th class="text-end">Quick Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (!Model.Grievances.Any())
+                {
+                    <tr>
+                        <td colspan="6" class="text-center py-5 text-muted">
+                            <i class="bi bi-check-circle fs-1 d-block mb-2 text-success"></i>
+                            <p class="mb-0 fw-semibold">No pending complaints for this department queue.</p>
+                        </td>
+                    </tr>
+                }
+                else
+                {
+                    @foreach (var g in Model.Grievances)
+                    {
+                        var isBreached = g.Status != CivicVoice.Domain.Enums.GrievanceStatus.Resolved 
+                                      && g.Status != CivicVoice.Domain.Enums.GrievanceStatus.Rejected 
+                                      && g.DueAt < DateTime.UtcNow;
+
+                        <tr>
+                            <td class="fw-bold">#@g.GrievanceId</td>
+                            <td>
+                                <div class="fw-semibold">@(g.Category?.Name ?? $"Category #{g.CategoryId}")</div>
+                                <small class="text-muted"><i class="bi bi-geo-alt"></i> @(g.Ward?.Name ?? $"Ward #{g.WardId}")</small>
+                            </td>
+                            <td>
+                                <div class="text-truncate" style="max-width: 250px;" title="@g.Description">
+                                    @g.Description
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge bg-light text-dark border">@g.Status</span>
+                            </td>
+                            <td>
+                                @if (isBreached)
+                                {
+                                    <span class="badge badge-sla-breached">SLA BREACHED</span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted small">@g.DueAt.ToLocalTime().ToString("MMM dd, HH:mm")</span>
+                                }
+                            </td>
+                            <td class="text-end">
+                                <div class="d-inline-flex gap-1">
+                                    @if (g.Status == CivicVoice.Domain.Enums.GrievanceStatus.Assigned)
+                                    {
+                                        <form asp-controller="Grievances" asp-action="UpdateStatus" method="post" class="d-inline">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="grievanceId" value="@g.GrievanceId" />
+                                            <input type="hidden" name="newStatus" value="2" /> <!-- InProgress -->
+                                            <button type="submit" class="btn btn-sm btn-warning rounded-pill">
+                                                <i class="bi bi-play-fill"></i> Start Work
+                                            </button>
+                                        </form>
+                                    }
+                                    @if (g.Status == CivicVoice.Domain.Enums.GrievanceStatus.InProgress)
+                                    {
+                                        <form asp-controller="Grievances" asp-action="UpdateStatus" method="post" class="d-inline">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="grievanceId" value="@g.GrievanceId" />
+                                            <input type="hidden" name="newStatus" value="3" /> <!-- Resolved -->
+                                            <button type="submit" class="btn btn-sm btn-success rounded-pill">
+                                                <i class="bi bi-check-lg"></i> Mark Resolved
+                                            </button>
+                                        </form>
+                                    }
+                                    <a asp-controller="Grievances" asp-action="Details" asp-route-id="@g.GrievanceId" class="btn btn-sm btn-outline-primary rounded-pill">
+                                        Details
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

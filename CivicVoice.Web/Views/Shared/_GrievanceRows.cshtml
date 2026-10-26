@@ -1,0 +1,103 @@
+@model IEnumerable<CivicVoice.Domain.Entities.Grievance>
+
+@if (!Model.Any())
+{
+    <tr>
+        <td colspan="7" class="text-center py-5 text-muted">
+            <i class="bi bi-inbox fs-1 d-block mb-2 text-secondary"></i>
+            <p class="mb-0 fw-semibold">No grievances match the specified criteria.</p>
+            <small>Try adjusting your search terms, status filters, or municipal ward.</small>
+        </td>
+    </tr>
+}
+else
+{
+    @foreach (var item in Model)
+    {
+        var isBreached = item.Status != GrievanceStatus.Resolved 
+                      && item.Status != GrievanceStatus.Rejected 
+                      && item.DueAt < DateTime.UtcNow;
+
+        var statusClass = item.Status switch
+        {
+            GrievanceStatus.Submitted => "badge-status-submitted",
+            GrievanceStatus.Assigned => "badge-status-assigned",
+            GrievanceStatus.InProgress => "badge-status-inprogress",
+            GrievanceStatus.Resolved => "badge-status-resolved",
+            GrievanceStatus.Rejected => "badge-status-rejected",
+            _ => "bg-light text-dark"
+        };
+
+        var statusIcon = item.Status switch
+        {
+            GrievanceStatus.Submitted => "bi-clock-history",
+            GrievanceStatus.Assigned => "bi-person-check",
+            GrievanceStatus.InProgress => "bi-gear-wide-connected",
+            GrievanceStatus.Resolved => "bi-check-circle-fill",
+            GrievanceStatus.Rejected => "bi-x-circle-fill",
+            _ => "bi-circle"
+        };
+
+        <tr>
+            <td class="fw-bold">
+                <a asp-controller="Grievances" asp-action="Details" asp-route-id="@item.GrievanceId" class="text-decoration-none text-primary">
+                    #@item.GrievanceId
+                </a>
+            </td>
+            <td>
+                <div class="fw-semibold text-truncate" style="max-width: 280px;" title="@item.Description">
+                    @item.Description
+                </div>
+                <small class="text-muted">
+                    <i class="bi bi-calendar3 me-1"></i>@item.CreatedAt.ToLocalTime().ToString("g")
+                    @if (item.IsAnonymous)
+                    {
+                        <span class="badge bg-light text-secondary ms-1 border"><i class="bi bi-eye-slash"></i> Anonymous</span>
+                    }
+                </small>
+            </td>
+            <td>
+                <span class="badge bg-light text-dark border">
+                    <i class="bi bi-geo-alt me-1 text-danger"></i>@(item.Ward?.Name ?? $"Ward #{item.WardId}")
+                </span>
+            </td>
+            <td>
+                <div class="fw-medium">@(item.Category?.Name ?? $"Cat #{item.CategoryId}")</div>
+                <small class="text-muted"><i class="bi bi-building me-1"></i>@(item.Category?.Department?.Name ?? "Department Assigned")</small>
+            </td>
+            <td>
+                <span class="badge-status @statusClass">
+                    <i class="bi @statusIcon"></i>@item.Status
+                </span>
+            </td>
+            <td>
+                @if (item.Status == GrievanceStatus.Resolved)
+                {
+                    <span class="text-success small fw-semibold"><i class="bi bi-check-all me-1"></i>Resolved</span>
+                }
+                else if (item.Status == GrievanceStatus.Rejected)
+                {
+                    <span class="text-muted small"><i class="bi bi-slash-circle me-1"></i>Closed</span>
+                }
+                else if (isBreached)
+                {
+                    <span class="badge badge-sla-breached">
+                        <i class="bi bi-exclamation-diamond-fill me-1"></i>SLA BREACHED
+                    </span>
+                    <div class="small text-danger mt-1">Due @item.DueAt.ToLocalTime().ToString("MMM dd, HH:mm")</div>
+                }
+                else
+                {
+                    <span class="badge bg-light text-success border">
+                        <i class="bi bi-stopwatch me-1"></i>Due @item.DueAt.ToLocalTime().ToString("MMM dd, HH:mm")
+                    </span>
+                }
+            </td>
+            <td class="text-end">
+                <a asp-controller="Grievances" asp-action="Details" asp-route-id="@item.GrievanceId" class="btn btn-outline-primary btn-sm rounded-pill px-3">
+                    View Details <i class="bi bi-arrow-right-short"></i>
+                </a>
+            </td>
+        </tr>
+    }
+}
